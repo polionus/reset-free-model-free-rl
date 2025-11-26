@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Optional
 from collections.abc import Callable
-from glue.environment import BaseEnvironment
+import gymnasium as gym
 
 BUCKET_SIZE = 20
 
@@ -29,7 +29,7 @@ def desc_rep(s: np.ndarray) -> np.ndarray:
     return rep
 
 
-class OpenRoom(BaseEnvironment):
+class OpenRoom(gym.Env):
     GOAL_BOX = np.array([[0.9, 1.0], [0.9, 1.0]])
     ACTION_DISPLACEMENT = 0.05
 
@@ -38,8 +38,17 @@ class OpenRoom(BaseEnvironment):
             self.max_steps = max_steps
             self.actions: int = 4
 
-            self.observations = self.get_observations(mode)
-            self.rep = self.get_rep(mode)
+            # self.observation_space = self.get_observations(mode)
+
+            if mode == 'continuous':
+                self.observation_space = gym.spaces.Box(0, 1, shape = (2,))
+            elif mode == 'discrete':
+                self.observation_space = gym.spaces.Box(0, 1, shape=(BUCKET_SIZE * 2,))
+            else:
+                raise ValueError(f"Invalid mode: {mode}")
+                
+            
+            self.action_space = gym.spaces.Discrete(4)
 
             self.s: np.ndarray = np.array([0.1, 0.1])
             self.rng = np.random.default_rng(seed)
@@ -50,12 +59,11 @@ class OpenRoom(BaseEnvironment):
             np.all(s <= OpenRoom.GOAL_BOX[:, 1])
         )
 
-    def start(self):
+    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
+            super().reset(seed=seed)
             self.s = np.array([0.1, 0.1])
-            extra = {
-                'distance_rep': self.s
-            }
-            return self.rep(self.s), extra
+            info = {}
+            return self.s, info
 
     def step(self, action):
 
@@ -80,19 +88,9 @@ class OpenRoom(BaseEnvironment):
 
         self.s = sp
 
-        extra = {
-            'distance_rep': self.s
-        }
+        info = {}
 
-        return reward, self.rep(sp), t, extra
-
-    def get_observations(self, mode: str) -> tuple[int, ...]:
-        if mode == 'continuous':
-            return (2,)
-        elif mode == 'discrete':
-            return (2 * BUCKET_SIZE,)
-        else:
-            raise ValueError(f"Invalid mode: {mode}")
+        return self.s, reward, t, False, info
 
     def get_rep(self, mode: str) -> Callable:
         if mode == 'continuous':
