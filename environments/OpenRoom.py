@@ -37,6 +37,7 @@ class OpenRoom(gym.Env):
             self.seed = seed
             self.max_steps = max_steps
             self.actions: int = 4
+            self.n_step = 0
 
             # self.observation_space = self.get_observations(mode)
 
@@ -61,11 +62,13 @@ class OpenRoom(gym.Env):
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
             super().reset(seed=seed)
+            self.n_step = 1
             self.s = np.array([0.1, 0.1])
             info = {}
             return self.s, info
 
     def step(self, action):
+        self.n_step += 1
 
         # Calculate the next state
         sp = self.s.copy()
@@ -90,7 +93,9 @@ class OpenRoom(gym.Env):
 
         info = {}
 
-        return self.s, reward, t, False, info
+        trunc = False if self.max_steps is None else self.n_step >= self.max_steps
+
+        return self.s, reward, t, trunc, info
 
     def get_rep(self, mode: str) -> Callable:
         if mode == 'continuous':

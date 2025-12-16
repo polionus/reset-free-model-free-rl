@@ -15,6 +15,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 from buffers import ReplayBuffer
 
+from environments.OpenRoom import OpenRoom
+
 
 @dataclass
 class Args:
@@ -28,7 +30,7 @@ class Args:
     """if toggled, cuda will be enabled by default"""
     track: bool = False
     """if toggled, this experiment will be tracked with Weights and Biases"""
-    wandb_project_name: str = "cleanRL"
+    wandb_project_name: str = "single-episode-rl"
     """the wandb's project name"""
     wandb_entity: str = None
     """the entity (team) of wandb's project"""
@@ -44,7 +46,7 @@ class Args:
     # Algorithm specific arguments
     env_id: str = "CartPole-v1"
     """the id of the environment"""
-    total_timesteps: int = 500000
+    total_timesteps: int = 100000
     """total timesteps of the experiments"""
     learning_rate: float = 2.5e-4
     """the learning rate of the optimizer"""
@@ -75,7 +77,9 @@ class Args:
 def make_env(env_id, seed, idx, capture_video, run_name):
     def thunk():
         if capture_video and idx == 0:
-            env = gym.make(env_id, render_mode="rgb_array")
+            # env = gym.make(env_id, render_mode="rgb_array")
+            env = OpenRoom(seed, mode="discrete", max_steps=200)
+
             env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
         else:
             env = gym.make(env_id)
