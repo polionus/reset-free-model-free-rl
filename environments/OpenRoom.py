@@ -2,6 +2,7 @@ import numpy as np
 from typing import Optional
 from collections.abc import Callable
 import gymnasium as gym
+from aim import Run
 
 BUCKET_SIZE = 20
 
@@ -39,12 +40,14 @@ class OpenRoom(gym.Env):
         mode: str,
         max_steps: Optional[int] = None,
         reset_free: bool = True,
+        run: Optional[Run] =  None 
     ):
         self.seed = seed
         self.max_steps = max_steps
         self.actions: int = 4
         self.n_step = 0
         self.reset_free = reset_free
+        self.run = run
 
         # self.observation_space = self.get_observations(mode)
 
@@ -91,6 +94,8 @@ class OpenRoom(gym.Env):
         sp = sp + self.rng.uniform(0.0, 0.01, size=2)
         sp = np.clip(sp, 0.0, 1.0)
 
+        
+
         reward = 0.0
         t = False
         if self.in_goal(sp) and not self.reset_free:
@@ -108,6 +113,12 @@ class OpenRoom(gym.Env):
         info = {}
         if t or trunc:
             info["final_observation"] = self.rep(self.s)
+
+        if self.run is not None: 
+            self.run.track(reward, name = "Reward")
+            
+            if t or trunc: 
+                self.run.track(reward, name="Return")
 
         return self.rep(self.s), reward, t, trunc, info
 

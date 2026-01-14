@@ -1,0 +1,10 @@
+1. Make an environment where the goal moves and the agent has to continually track it. 
+    1. Give the agent the whole map
+    2. Give it its position
+2. Experiment: A. Reset the agent B. Do not reset the agent. (Agents that get into infinite loops)
+3. Make visualizations work
+4. Research Question: Maybe showing that some seeds fail catasrophically, means that we need better methods for dealing with this in the reset free case. 
+    Maybe the agent needs an internal mechanism that signals a need for change. 
+5. If intrinsic motivation + small net: FAIL , But intrinsic motivation + Big Net Succ, then interesting, maybe paper. (We can test regularization or very simple plasticitty mitigations such as drop out or weight resets.)
+    (Reasoning: If interesting, this means that the problem with resets means that intrinsic motivation was not effective becasue of plasticitty) (plasticitty <---> intrinsic motivation) [They need to exist together]
+    

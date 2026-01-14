@@ -3,6 +3,7 @@ import os
 import random
 import time
 from dataclasses import dataclass
+from aim import Run
 
 import gymnasium as gym
 import numpy as np
@@ -79,16 +80,9 @@ class Args:
 
 def make_env(env_id, seed, idx, capture_video, run_name, reset_free):
     def thunk():
-        # if capture_video and idx == 0:
-        #     # env = gym.make(env_id, render_mode="rgb_array")
-        #     env = OpenRoom(seed, mode="discrete", max_steps=200)
-
-        #     env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
-        # else:
-        #     env = gym.make(env_id)
 
         if env_id == "OpenRoom":
-            env = OpenRoom(seed, mode="discrete", max_steps=200, reset_free=reset_free)
+            env = OpenRoom(seed, mode="discrete", max_steps=200, reset_free=reset_free, run = Run())
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env.action_space.seed(seed)
 
