@@ -66,6 +66,10 @@ class OpenRoom(gym.Env):
         self.rng = np.random.default_rng(seed)
 
         self.rep = self.get_rep(mode)
+        
+        self.fig = None
+        self.ax = None
+        self.agent_patch = None
 
     def in_goal(self, s: np.ndarray) -> bool:
         return bool(
