@@ -33,7 +33,6 @@ def desc_rep(s: np.ndarray) -> np.ndarray:
 
 
 class OpenRoom(gym.Env):
-    GOAL_BOX = np.array([[0.9, 1.0], [0.9, 1.0]])
     ACTION_DISPLACEMENT = 0.05
 
     def __init__(
@@ -42,7 +41,9 @@ class OpenRoom(gym.Env):
         mode: str,
         max_steps: Optional[int] = None,
         reset_free: bool = True,
-        run: Optional[Run] =  None 
+        render_mode: bool = False,
+        run: Optional[Run] = None,
+        moving_goal: bool = True,
     ):
         self.seed = seed
         self.max_steps = max_steps
@@ -50,6 +51,8 @@ class OpenRoom(gym.Env):
         self.n_step = 0
         self.reset_free = reset_free
         self.run = run
+
+        self.render_env = render_mode
 
         # self.observation_space = self.get_observations(mode)
 
@@ -66,15 +69,16 @@ class OpenRoom(gym.Env):
         self.rng = np.random.default_rng(seed)
 
         self.rep = self.get_rep(mode)
-        
+
         self.fig = None
         self.ax = None
         self.agent_patch = None
 
+        self.goal_box = np.array([[0.9, 1.0], [0.9, 1.0]])
+
     def in_goal(self, s: np.ndarray) -> bool:
         return bool(
-            np.all(s >= OpenRoom.GOAL_BOX[:, 0])
-            and np.all(s <= OpenRoom.GOAL_BOX[:, 1])
+            np.all(s >= self.goal_box[:, 0]) and np.all(s <= self.goal_box[:, 1])
         )
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
@@ -82,6 +86,10 @@ class OpenRoom(gym.Env):
         self.n_step = 1
         self.s = np.array([0.1, 0.1])
         info = {}
+
+        if self.render_env:
+            self.render()
+
         return self.rep(self.s), info
 
     def step(self, action):
@@ -100,13 +108,12 @@ class OpenRoom(gym.Env):
         sp = sp + self.rng.uniform(0.0, 0.01, size=2)
         sp = np.clip(sp, 0.0, 1.0)
 
-        
-
         reward = 0.0
         t = False
-        if self.in_goal(sp) and not self.reset_free:
+        if self.in_goal(sp):
             reward = 1.0
-            t = True
+            if not self.reset_free:
+                t = True
 
         self.s = sp
 
@@ -120,11 +127,14 @@ class OpenRoom(gym.Env):
         if t or trunc:
             info["final_observation"] = self.rep(self.s)
 
-        if self.run is not None: 
-            self.run.track(reward, name = "Reward")
-            
-            if t or trunc: 
+        if self.run is not None:
+            self.run.track(reward, name="Reward")
+
+            if t or trunc:
                 self.run.track(reward, name="Return")
+
+        if self.render_env:
+            self.render()
 
         return self.rep(self.s), reward, t, trunc, info
 
@@ -135,44 +145,47 @@ class OpenRoom(gym.Env):
             return desc_rep
         else:
             raise ValueError(f"Invalid mode: {mode}")
-        
 
     def render(self):
         if self.render_env is None:
             return
-        
+
         # Lazy Initialization: Create the plot only once
         if self.fig is None:
-            plt.ion() # Interactive mode on
+            plt.ion()  # Interactive mode on
             self.fig, self.ax = plt.subplots(figsize=(5, 5))
             self.ax.set_xlim(0, 1)
             self.ax.set_ylim(0, 1)
-            self.ax.set_aspect('equal')
+            self.ax.set_aspect("equal")
             self.ax.set_title("OpenRoom Environment")
 
             # Draw Static Goal (Green Box)
             # Box is [[x_min, x_max], [y_min, y_max]]
-            w = self.GOAL_BOX[0, 1] - self.GOAL_BOX[0, 0]
-            h = self.GOAL_BOX[1, 1] - self.GOAL_BOX[1, 0]
+            w = self.goal_box[0, 1] - self.goal_box[0, 0]
+            h = self.goal_box[1, 1] - self.goal_box[1, 0]
             goal = patches.Rectangle(
-                (self.GOAL_BOX[0, 0], self.GOAL_BOX[1, 0]), 
-                w, h, color='green', alpha=0.3
+                (self.goal_box[0, 0], self.goal_box[1, 0]),
+                w,
+                h,
+                color="green",
+                alpha=0.3,
             )
             self.ax.add_patch(goal)
-            self.ax.text(self.GOAL_BOX[0, 0], self.GOAL_BOX[1, 0], 'GOAL', fontsize=8)
+            self.ax.text(self.goal_box[0, 0], self.goal_box[1, 0], "GOAL", fontsize=8)
 
             # Draw Agent (Blue Circle) - Saved to self.agent_patch
-            self.agent_patch = plt.Circle(self.s, 0.02, color='blue')
+            self.agent_patch = plt.Circle(self.s, 0.02, color="blue")
             self.ax.add_patch(self.agent_patch)
-        
+
         # Fast Update: Just move the existing circle
         self.agent_patch.center = self.s
-        
+
         # Draw and pause briefly
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
         # Pause duration controls speed (0.01 = fast, 0.1 = slow)
-        plt.pause(0.05)
+        # plt.pause(0.05)
+        plt.pause(1e-7)
 
     def close(self):
         if self.fig:

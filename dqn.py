@@ -44,6 +44,11 @@ class Args:
     hf_entity: str = ""
     """the user or org name of the model repository from the Hugging Face Hub"""
 
+    log_dir: str = "logs"
+    """directory in which to save the CSV logs"""
+
+    render_training: bool = False
+
     reset_free: bool = False
     """enable reset free training"""
 
@@ -78,11 +83,17 @@ class Args:
     """the frequency of training"""
 
 
-def make_env(env_id, seed, idx, capture_video, run_name, reset_free):
+def make_env(env_id, seed, idx, capture_video, run_name, reset_free, render_training):
     def thunk():
-
         if env_id == "OpenRoom":
-            env = OpenRoom(seed, mode="discrete", max_steps=200, reset_free=reset_free, run = Run())
+            env = OpenRoom(
+                seed,
+                mode="discrete",
+                max_steps=200,
+                reset_free=reset_free,
+                run=Run(),
+                render_mode=args.render_training,
+            )
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env.action_space.seed(seed)
 
@@ -153,6 +164,7 @@ if __name__ == "__main__":
                 args.capture_video,
                 run_name,
                 args.reset_free,
+                args.render_training,
             )
             for i in range(args.num_envs)
         ]
@@ -175,6 +187,10 @@ if __name__ == "__main__":
     )
     start_time = time.time()
 
+    logs = {
+        "reward": [],
+    }
+
     # TRY NOT TO MODIFY: start the game
     obs, _ = envs.reset(seed=args.seed)
     for global_step in range(args.total_timesteps):
@@ -195,6 +211,9 @@ if __name__ == "__main__":
 
         # TRY NOT TO MODIFY: execute the game and log data.
         next_obs, rewards, terminations, truncations, infos = envs.step(actions)
+
+        # print("reward:", rewards[0])
+        logs["reward"].append(rewards[0])
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
         if infos and "episode" in infos:
@@ -260,38 +279,13 @@ if __name__ == "__main__":
                         + (1.0 - args.tau) * target_network_param.data
                     )
 
-    if args.save_model:
-        model_path = f"runs/{run_name}/{args.exp_name}.cleanrl_model"
-        torch.save(q_network.state_dict(), model_path)
-        print(f"model saved to {model_path}")
-        from cleanrl_utils.evals.dqn_eval import evaluate
-
-        episodic_returns = evaluate(
-            model_path,
-            make_env,
-            args.env_id,
-            eval_episodes=10,
-            run_name=f"{run_name}-eval",
-            Model=QNetwork,
-            device=device,
-            epsilon=args.end_e,
-        )
-        for idx, episodic_return in enumerate(episodic_returns):
-            writer.add_scalar("eval/episodic_return", episodic_return, idx)
-
-        if args.upload_model:
-            from cleanrl_utils.huggingface import push_to_hub
-
-            repo_name = f"{args.env_id}-{args.exp_name}-seed{args.seed}"
-            repo_id = f"{args.hf_entity}/{repo_name}" if args.hf_entity else repo_name
-            push_to_hub(
-                args,
-                episodic_returns,
-                repo_id,
-                "DQN",
-                f"runs/{run_name}",
-                f"videos/{run_name}-eval",
-            )
-
     envs.close()
     writer.close()
+
+    if not os.path.exists(args.log_dir):
+        os.makedirs(args.log_dir)
+
+    with open(f"{args.log_dir}/{run_name}.csv", "w") as f:
+        f.write("step,reward,reset free\n")
+        for it in range(args.total_timesteps):
+            f.write(f"{it},{logs['reward'][it]},{args.reset_free}\n")
