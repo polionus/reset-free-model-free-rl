@@ -3,6 +3,8 @@ from typing import Optional
 from collections.abc import Callable
 import gymnasium as gym
 from aim import Run
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 BUCKET_SIZE = 20
 
@@ -129,3 +131,45 @@ class OpenRoom(gym.Env):
             return desc_rep
         else:
             raise ValueError(f"Invalid mode: {mode}")
+        
+
+    def render(self):
+        if self.render_env is None:
+            return
+        
+        # Lazy Initialization: Create the plot only once
+        if self.fig is None:
+            plt.ion() # Interactive mode on
+            self.fig, self.ax = plt.subplots(figsize=(5, 5))
+            self.ax.set_xlim(0, 1)
+            self.ax.set_ylim(0, 1)
+            self.ax.set_aspect('equal')
+            self.ax.set_title("OpenRoom Environment")
+
+            # Draw Static Goal (Green Box)
+            # Box is [[x_min, x_max], [y_min, y_max]]
+            w = self.GOAL_BOX[0, 1] - self.GOAL_BOX[0, 0]
+            h = self.GOAL_BOX[1, 1] - self.GOAL_BOX[1, 0]
+            goal = patches.Rectangle(
+                (self.GOAL_BOX[0, 0], self.GOAL_BOX[1, 0]), 
+                w, h, color='green', alpha=0.3
+            )
+            self.ax.add_patch(goal)
+            self.ax.text(self.GOAL_BOX[0, 0], self.GOAL_BOX[1, 0], 'GOAL', fontsize=8)
+
+            # Draw Agent (Blue Circle) - Saved to self.agent_patch
+            self.agent_patch = plt.Circle(self.s, 0.02, color='blue')
+            self.ax.add_patch(self.agent_patch)
+        
+        # Fast Update: Just move the existing circle
+        self.agent_patch.center = self.s
+        
+        # Draw and pause briefly
+        self.fig.canvas.draw()
+        self.fig.canvas.flush_events()
+        # Pause duration controls speed (0.01 = fast, 0.1 = slow)
+        plt.pause(0.05)
+
+    def close(self):
+        if self.fig:
+            plt.close(self.fig)
